@@ -62,10 +62,10 @@ void pinioInit(const pinioConfig_t *pinioConfig)
             IOConfigGPIO(io, IOCFG_IN_FLOATING);
             break;
         case PINIO_CONFIG_MODE_IN_PU:
-            IOConfigGPIO(io, IOCFG_IN_PULLUP);
+            IOConfigGPIO(io, IOCFG_IPU);
             break;
         case PINIO_CONFIG_MODE_IN_PD:
-            IOConfigGPIO(io, IOCFG_IN_PULLDOWN);
+            IOConfigGPIO(io, IOCFG_IPD);
             break;
         }
 

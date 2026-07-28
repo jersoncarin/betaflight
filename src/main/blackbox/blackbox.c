@@ -50,6 +50,9 @@
 #include "drivers/compass/compass.h"
 #include "drivers/sensor.h"
 #include "drivers/time.h"
+#ifdef USE_PINIO
+#include "drivers/pinio.h"
+#endif
 #ifdef USE_DSHOT_TELEMETRY
 #include "drivers/dshot.h"
 #endif
