@@ -111,7 +111,8 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
     .sample_rate = BLACKBOX_RATE_QUARTER,
     .device = DEFAULT_BLACKBOX_DEVICE,
     .mode = BLACKBOX_MODE_NORMAL,
-    .high_resolution = false
+    .high_resolution = false,
+    .pinio_input_blackbox = 0
 );
 
 STATIC_ASSERT((sizeof(blackboxConfig()->fields_disabled_mask) * 8) >= FLIGHT_LOG_FIELD_SELECT_COUNT, too_many_flight_log_fields_selections);
@@ -2060,9 +2061,23 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 {
     static blackboxState_e cacheFlushNextState;
 
+    bool isPinioBlackboxActive = false;
+#ifdef USE_PINIO
+    if (blackboxConfig()->pinio_input_blackbox > 0 &&
+        blackboxConfig()->pinio_input_blackbox <= PINIO_COUNT &&
+        blackboxConfig()->mode != BLACKBOX_MODE_MOTOR_TEST) {
+        isPinioBlackboxActive = true;
+    }
+#endif
+
     switch (blackboxState) {
     case BLACKBOX_STATE_STOPPED:
-        if (ARMING_FLAG(ARMED)) {
+        if (isPinioBlackboxActive) {
+            if (pinioGet(blackboxConfig()->pinio_input_blackbox - 1)) {
+                blackboxOpen();
+                blackboxStart();
+            }
+        } else if (ARMING_FLAG(ARMED)) {
             blackboxOpen();
             blackboxStart();
         }
@@ -2177,6 +2192,12 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
+        if (isPinioBlackboxActive) {
+            if (!pinioGet(blackboxConfig()->pinio_input_blackbox - 1)) {
+                blackboxSetState(BLACKBOX_STATE_SHUTTING_DOWN);
+                break;
+            }
+        }
         // Prevent the Pausing of the log on the mode switch if in Motor Test Mode
         if (blackboxModeActivationConditionPresent && !IS_RC_MODE_ACTIVE(BOXBLACKBOX) && !startedLoggingInTestMode) {
             blackboxSetState(BLACKBOX_STATE_PAUSED);
@@ -2238,7 +2259,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
     } else { // Only log in test mode if there is room!
         switch (blackboxConfig()->mode) {
         case BLACKBOX_MODE_MOTOR_TEST:
-            // Handle Motor Test Mode
+            // Handle Motor Test Mode (PinIO input is ignored during MOTOR_TEST mode)
             if (inMotorTestMode()) {
                 if (blackboxState==BLACKBOX_STATE_STOPPED) {
                     startInTestMode();
@@ -2251,8 +2272,10 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
             break;
         case BLACKBOX_MODE_ALWAYS_ON:
-            if (blackboxState==BLACKBOX_STATE_STOPPED) {
-                startInTestMode();
+            if (!isPinioBlackboxActive) {
+                if (blackboxState==BLACKBOX_STATE_STOPPED) {
+                    startInTestMode();
+                }
             }
 
             break;

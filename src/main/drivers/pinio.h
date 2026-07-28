@@ -29,8 +29,12 @@
 #define PINIO_CONFIG_OUT_INVERTED 0x80
 #define PINIO_CONFIG_MODE_MASK    0x7F
 #define PINIO_CONFIG_MODE_OUT_PP  0x01
+#define PINIO_CONFIG_MODE_IN_FLOATING 0x02
+#define PINIO_CONFIG_MODE_IN_PU       0x03
+#define PINIO_CONFIG_MODE_IN_PD       0x04
 
 struct pinioConfig_s;
 
 void pinioInit(const struct pinioConfig_s *pinioConfig);
 void pinioSet(int index, bool on);
+bool pinioGet(int index);

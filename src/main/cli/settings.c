@@ -953,6 +953,9 @@ const clivalue_t valueTable[] = {
 #endif
     { "blackbox_mode",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_BLACKBOX_MODE }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, mode) },
     { "blackbox_high_resolution",   VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, high_resolution) },
+#ifdef USE_PINIO
+    { "pinio_input_blackbox",      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, PINIO_COUNT }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, pinio_input_blackbox) },
+#endif
 #endif
 
 // PG_MOTOR_CONFIG

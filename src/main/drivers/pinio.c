@@ -58,6 +58,15 @@ void pinioInit(const pinioConfig_t *pinioConfig)
             }
             IOConfigGPIO(io, IOCFG_OUT_PP);
             break;
+        case PINIO_CONFIG_MODE_IN_FLOATING:
+            IOConfigGPIO(io, IOCFG_IN_FLOATING);
+            break;
+        case PINIO_CONFIG_MODE_IN_PU:
+            IOConfigGPIO(io, IOCFG_IN_PULLUP);
+            break;
+        case PINIO_CONFIG_MODE_IN_PD:
+            IOConfigGPIO(io, IOCFG_IN_PULLDOWN);
+            break;
         }
 
         if (pinioConfig->config[i] & PINIO_CONFIG_OUT_INVERTED) {
@@ -83,5 +92,15 @@ void pinioSet(int index, bool on)
         IOWrite(pinioRuntime[index].io, newState);
         pinioRuntime[index].state = newState;
     }
+}
+
+bool pinioGet(int index)
+{
+    if (index < 0 || index >= PINIO_COUNT || !pinioRuntime[index].io) {
+        return false;
+    }
+
+    bool state = IORead(pinioRuntime[index].io);
+    return state ^ pinioRuntime[index].inverted;
 }
 #endif

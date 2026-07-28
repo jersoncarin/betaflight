@@ -65,6 +65,7 @@ typedef struct blackboxConfig_s {
     uint8_t device;
     uint8_t mode;
     uint8_t high_resolution;
+    uint8_t pinio_input_blackbox;
 } blackboxConfig_t;
 
 PG_DECLARE(blackboxConfig_t, blackboxConfig);
