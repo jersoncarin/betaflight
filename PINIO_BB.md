@@ -8,8 +8,8 @@ This document describes how to configure and use **GPIO PinIO Input** reading an
 
 When `pinio_input_blackbox` is enabled, Blackbox logging is controlled strictly by an external physical GPIO input signal fed into a Flight Controller pad:
 
-* **Signal HIGH (3.3V)**: Immediately opens a **brand-new log file** (e.g. `LOG00001.TXT`) and records flight data continuously (even if disarmed on the ground).
-* **Signal LOW (0V)**: Immediately flushes data buffers, **closes the active log file**, and stops logging.
+* **Signal HIGH (3.3V)**: Immediately opens a **brand-new log file** (e.g. `LOG00001.TXT`) and records flight data continuously (even if disarmed on the ground or disarmed during flight).
+* **Signal LOW (0V)**: Calls `blackboxFinish()`, writes a clean `"End of log"` footer marker into the stream, flushes data buffers, and **closes the active log file**.
 * **Next Signal HIGH**: Opens the **next new log file** (e.g. `LOG00002.TXT`).
 * **`pinio_input_blackbox = 0` (OFF)**: PinIO input trigger is disabled, restoring 100% standard Betaflight logging logic.
 
@@ -20,11 +20,11 @@ When `pinio_input_blackbox` is enabled, Blackbox logging is controlled strictly 
 Copy and paste these commands into the Betaflight Configurator **CLI** tab:
 
 ```cli
-# Step 1: Free your chosen hardware pad (e.g., an unused RX3 pad on pin C08)
-resource RX 3 NONE
+# Step 1: Free your chosen hardware pad (e.g., pad M5 on pin A01)
+resource MOTOR 5 NONE
 
-# Step 2: Assign pad C08 to PinIO 1
-resource PINIO 1 C08
+# Step 2: Assign pad A01 to PinIO 1
+resource PINIO 1 A01
 
 # Step 3: Configure PinIO 1 as an Input with Pull-Down resistor (4 = Input Pull-Down)
 set pinio_config = 4,1,1,1
@@ -47,7 +47,7 @@ save
 | Value | Mode | Electrical Behavior | Common Application |
 | :---: | :--- | :--- | :--- |
 | `1` | **Output Push-Pull** *(Default)* | Pin driven HIGH (3.3V) or LOW (0V) as an output | VTX power switch, Bluetooth power toggle |
-| `2` | **Input Floating** | High-impedance input without internal pull resistor | External active 0V / 3.3V microcontroller signal |
+| `2` | **Input Floating** | High-impedance input without internal pull resistor | External active 0V / 3.3V logic signal |
 | `3` | **Input Pull-Up** | Internal pull-up to 3.3V (Active LOW) | Mechanical switch / button connected to Ground (GND) |
 | `4` | **Input Pull-Down** | Internal pull-down to GND (Active HIGH) | Mechanical switch / button connected to 3.3V |
 
@@ -56,15 +56,16 @@ save
 
 ---
 
-### 2. Interaction with `blackbox_mode` Settings
+### 2. Interaction with `blackbox_mode` & Disarming
 
-`pinio_input_blackbox` interacts with Betaflight's built-in `blackbox_mode` settings as follows:
+`pinio_input_blackbox` interacts with Betaflight's built-in `blackbox_mode` and disarming routines as follows:
 
-| `blackbox_mode` | PinIO Override Behavior |
+| Feature / Event | Behavior with `pinio_input_blackbox > 0` |
 | :--- | :--- |
-| **`NORMAL`** | **PinIO Overrides Arming**: PinIO HIGH starts a new log file. PinIO LOW closes the log file, regardless of whether the quad is Armed or Disarmed. |
-| **`ALWAYS_ON`** | **PinIO Overrides Always-On**: PinIO HIGH starts a new log file. PinIO LOW closes the log file and prevents `ALWAYS_ON` from auto-starting while LOW. |
-| **`MOTOR_TEST`** | **PinIO Bypassed**: PinIO input trigger is automatically **disabled** during motor testing so bench testing in Configurator works normally. |
+| **Disarming the Drone** | **Logging Continues**: Disarming the drone will **NOT** stop logging. Logging continues uninterrupted until the PinIO input signal goes LOW. |
+| **Log Closure** | **Clean Footer**: When PinIO goes LOW, `blackboxFinish()` is called, writing a clean `"End of log"` marker into the file before closing. |
+| **`NORMAL` & `ALWAYS_ON` Modes** | **PinIO Overrides Modes**: PinIO HIGH starts a new log file. PinIO LOW closes the log file. |
+| **`MOTOR_TEST` Mode** | **PinIO Bypassed**: PinIO input trigger is automatically **disabled** during motor testing so bench testing in Configurator works normally. |
 
 ---
 
@@ -74,8 +75,8 @@ save
 | :---: | :---: | :---: | :---: | :---: | :--- |
 | **ARMED** | NORMAL | Active | **LOW** | ❌ **OFF** | **Inhibited** (PinIO LOW blocks logging despite being Armed) |
 | **ARMED** | NORMAL | Active | **HIGH** | ✅ **ON** | **Logging Active** (Opens new log file) |
-| **DISARMED** | NORMAL | Inactive | **HIGH** | ✅ **ON** | **Logging Active** (PinIO HIGH triggers log on ground) |
+| **DISARMED** | NORMAL | Inactive | **HIGH** | ✅ **ON** | **Logging Active** (PinIO HIGH keeps logging active after disarm) |
 | **DISARMED** | ALWAYS | Inactive | **LOW** | ❌ **OFF** | **Inhibited** (PinIO LOW blocks ALWAYS_ON mode) |
 | Any | NORMAL / ALWAYS | Any | **LOW $\rightarrow$ HIGH** | ✅ **NEW LOG** | Opens `LOG00001.TXT` |
-| Any | NORMAL / ALWAYS | Any | **HIGH $\rightarrow$ LOW** | ❌ **CLOSE LOG** | Flushes & closes `LOG00001.TXT` |
+| Any | NORMAL / ALWAYS | Any | **HIGH $\rightarrow$ LOW** | ❌ **CLOSE LOG** | Writes `"End of log"` footer & closes `LOG00001.TXT` |
 | Any | NORMAL / ALWAYS | Any | **LOW $\rightarrow$ HIGH** | ✅ **NEW LOG** | Opens `LOG00002.TXT` |

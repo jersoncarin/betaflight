@@ -2197,7 +2197,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
         if (isPinioBlackboxActive) {
             if (!pinioGet(blackboxConfig()->pinio_input_blackbox - 1)) {
-                blackboxSetState(BLACKBOX_STATE_SHUTTING_DOWN);
+                blackboxFinish();
                 break;
             }
         }
