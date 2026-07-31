@@ -1792,7 +1792,7 @@ static void osdElementRcVoltage(osdElementParms_t *element)
     const uint16_t rcValue = constrain(rcData[channel], PWM_RANGE_MIN, PWM_RANGE_MAX);
     const int voltageCv = scaleRange(rcValue, PWM_RANGE_MIN, PWM_RANGE_MAX, osdConfig()->rc_voltage_min, osdConfig()->rc_voltage_max);
 
-    tfp_sprintf(element->buff, "RC %2u.%02uv", voltageCv / 100, voltageCv % 100);
+    osdPrintFloat(element->buff, 'R', voltageCv / 100.0f, "", 2, true, SYM_VOLT);
 }
 
 static void osdElementWarnings(osdElementParms_t *element)

@@ -1708,7 +1708,7 @@ const clivalue_t valueTable[] = {
     { "osd_aux_channel",            VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, MAX_SUPPORTED_RC_CHANNEL_COUNT }, PG_OSD_CONFIG, offsetof(osdConfig_t, aux_channel) },
     { "osd_aux_scale",              VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 1000 }, PG_OSD_CONFIG, offsetof(osdConfig_t, aux_scale) },
     { "osd_aux_symbol",             VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 },  PG_OSD_CONFIG, offsetof(osdConfig_t, aux_symbol) },
-    { "osd_rc_voltage_channel",     VAR_INT8   | MASTER_VALUE, .config.minmaxSigned = { -1, MAX_SUPPORTED_RC_CHANNEL_COUNT - 1 }, PG_OSD_CONFIG, offsetof(osdConfig_t, rc_voltage_channel) },
+    { "osd_rc_voltage_channel",     VAR_INT8   | MASTER_VALUE, .config.minmax = { -1, MAX_SUPPORTED_RC_CHANNEL_COUNT - 1 }, PG_OSD_CONFIG, offsetof(osdConfig_t, rc_voltage_channel) },
     { "osd_rc_voltage_min",         VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 6000 }, PG_OSD_CONFIG, offsetof(osdConfig_t, rc_voltage_min) },
     { "osd_rc_voltage_max",         VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 6000 }, PG_OSD_CONFIG, offsetof(osdConfig_t, rc_voltage_max) },
 #ifdef OSD_CANVAS_SIZE_DEBUG
