@@ -195,6 +195,7 @@ typedef enum {
     OSD_CUSTOM_MSG2,
     OSD_CUSTOM_MSG3,
     OSD_LIDAR_DIST,
+    OSD_RC_VOLTAGE,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -363,6 +364,9 @@ typedef struct osdConfig_s {
     uint8_t osd_show_spec_prearm;
 #endif // USE_SPEC_PREARM_SCREEN
     displayPortSeverity_e arming_logo;        // font from which to display logo on arming
+    int8_t rc_voltage_channel;
+    uint16_t rc_voltage_min;
+    uint16_t rc_voltage_max;
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);

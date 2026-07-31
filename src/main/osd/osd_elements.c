@@ -1781,6 +1781,20 @@ static void osdElementAuxValue(osdElementParms_t *element)
     tfp_sprintf(element->buff, "%c%d", osdConfig()->aux_symbol, osdAuxValue);
 }
 
+static void osdElementRcVoltage(osdElementParms_t *element)
+{
+    const int8_t channel = osdConfig()->rc_voltage_channel;
+    if (channel < 0 || channel >= MAX_SUPPORTED_RC_CHANNEL_COUNT) {
+        element->drawElement = false;
+        return;
+    }
+
+    const uint16_t rcValue = constrain(rcData[channel], PWM_RANGE_MIN, PWM_RANGE_MAX);
+    const int voltageCv = scaleRange(rcValue, PWM_RANGE_MIN, PWM_RANGE_MAX, osdConfig()->rc_voltage_min, osdConfig()->rc_voltage_max);
+
+    tfp_sprintf(element->buff, "RC %2u.%02uv", voltageCv / 100, voltageCv % 100);
+}
+
 static void osdElementWarnings(osdElementParms_t *element)
 {
     bool elementBlinking = false;
@@ -1925,6 +1939,7 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_TOTAL_FLIGHTS,
 #endif
     OSD_AUX_VALUE,
+    OSD_RC_VOLTAGE,
 #ifdef USE_OSD_HD
     OSD_SYS_GOGGLE_VOLTAGE,
     OSD_SYS_VTX_VOLTAGE,
@@ -2060,6 +2075,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_RSNR_VALUE]              = osdElementRsnr,
 #endif
     [OSD_RC_CHANNELS]             = osdElementRcChannels,
+    [OSD_RC_VOLTAGE]              = osdElementRcVoltage,
 #ifdef USE_GPS
     [OSD_EFFICIENCY]              = osdElementEfficiency,
 #endif
