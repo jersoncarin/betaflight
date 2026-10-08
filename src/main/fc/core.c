@@ -528,7 +528,13 @@ void disarm(flightLogDisarmReason_e reason)
         eventData.reason = reason;
         blackboxLogEvent(FLIGHT_LOG_EVENT_DISARM, (flightLogEventData_t*)&eventData);
 
-        if (blackboxConfig()->device && blackboxConfig()->mode != BLACKBOX_MODE_ALWAYS_ON) { // Close the log upon disarm except when logging mode is ALWAYS ON
+#ifdef USE_PINIO
+        const bool pinioTriggerOwnsLog = blackboxPinioTriggerEnabled();
+#else
+        const bool pinioTriggerOwnsLog = false;
+#endif
+
+        if (blackboxConfig()->device && blackboxConfig()->mode != BLACKBOX_MODE_ALWAYS_ON && !pinioTriggerOwnsLog) { // Close the log upon disarm except when logging mode is ALWAYS ON or the PinIO input trigger owns the log
             blackboxFinish();
         }
 #else

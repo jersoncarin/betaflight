@@ -50,6 +50,9 @@
 #include "drivers/compass/compass.h"
 #include "drivers/sensor.h"
 #include "drivers/time.h"
+#ifdef USE_PINIO
+#include "drivers/pinio.h"
+#endif
 #ifdef USE_DSHOT_TELEMETRY
 #include "drivers/dshot.h"
 #endif
@@ -111,7 +114,8 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
     .sample_rate = BLACKBOX_RATE_QUARTER,
     .device = DEFAULT_BLACKBOX_DEVICE,
     .mode = BLACKBOX_MODE_NORMAL,
-    .high_resolution = false
+    .high_resolution = false,
+    .pinio_input_blackbox = 0
 );
 
 STATIC_ASSERT((sizeof(blackboxConfig()->fields_disabled_mask) * 8) >= FLIGHT_LOG_FIELD_SELECT_COUNT, too_many_flight_log_fields_selections);
@@ -1190,6 +1194,52 @@ static bool inMotorTestMode(void)
     return false;
 }
 
+#ifdef USE_PINIO
+// Input must hold a new level this long before it starts or stops a log
+#define BLACKBOX_PINIO_DEBOUNCE_MS 50
+
+/**
+ * PinIO input trigger: an external signal (e.g. a camera's record state) opens a new log on HIGH and
+ * closes it on LOW, independently of arming. Returns the 0-based PinIO index, or -1 when the trigger
+ * is off, unusable (no pin assigned or the PinIO is not configured as an input), or overridden by
+ * MOTOR_TEST mode. An unusable trigger falls back to normal arm-based logging rather than never logging.
+ */
+static int blackboxPinioTriggerIndex(void)
+{
+    const int index = blackboxConfig()->pinio_input_blackbox - 1;
+
+    if (index < 0 || blackboxConfig()->mode == BLACKBOX_MODE_MOTOR_TEST || !pinioIsInput(index)) {
+        return -1;
+    }
+
+    return index;
+}
+
+bool blackboxPinioTriggerEnabled(void)
+{
+    return blackboxPinioTriggerIndex() >= 0;
+}
+
+static bool blackboxPinioTriggerActive(int index)
+{
+    static bool stableState;
+    static bool lastState;
+    static timeMs_t lastChangeMs;
+
+    const bool state = pinioGet(index);
+    const timeMs_t nowMs = millis();
+
+    if (state != lastState) {
+        lastState = state;
+        lastChangeMs = nowMs;
+    } else if (state != stableState && cmpTimeMs(nowMs, lastChangeMs) >= BLACKBOX_PINIO_DEBOUNCE_MS) {
+        stableState = state;
+    }
+
+    return stableState;
+}
+#endif
+
 #ifdef USE_GPS
 static void writeGPSHomeFrame(void)
 {
@@ -2050,17 +2100,36 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 {
     static blackboxState_e cacheFlushNextState;
 
+#ifdef USE_PINIO
+    const int pinioTriggerIndex = blackboxPinioTriggerIndex();
+    const bool pinioTriggerEnabled = pinioTriggerIndex >= 0;
+    // While disarmed a serial logger shared with MSP must stay free for the configurator
+    const bool pinioWantsLog = pinioTriggerEnabled && blackboxPinioTriggerActive(pinioTriggerIndex)
+        && (ARMING_FLAG(ARMED) || !(blackboxConfig()->device == BLACKBOX_DEVICE_SERIAL && findSharedSerialPort(FUNCTION_BLACKBOX, FUNCTION_MSP)));
+
+    // The trigger owns the log: close it from any open state, including while paused or writing headers
+    if (pinioTriggerEnabled && !pinioWantsLog
+        && blackboxState >= BLACKBOX_STATE_PREPARE_LOG_FILE && blackboxState <= BLACKBOX_STATE_RUNNING) {
+        blackboxFinish();
+    }
+#else
+    const bool pinioTriggerEnabled = false;
+    const bool pinioWantsLog = false;
+#endif
+
     switch (blackboxState) {
     case BLACKBOX_STATE_STOPPED:
-        if (ARMING_FLAG(ARMED)) {
+#ifdef USE_FLASHFS
+        // Check before starting, so an erase never begins with a log device left open
+        if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE)) {
+            blackboxSetState(BLACKBOX_STATE_START_ERASE);
+            break;
+        }
+#endif
+        if (pinioTriggerEnabled ? pinioWantsLog : ARMING_FLAG(ARMED)) {
             blackboxOpen();
             blackboxStart();
         }
-#ifdef USE_FLASHFS
-        if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE)) {
-            blackboxSetState(BLACKBOX_STATE_START_ERASE);
-        }
-#endif
         break;
     case BLACKBOX_STATE_PREPARE_LOG_FILE:
         if (blackboxDeviceBeginLog()) {
@@ -2228,7 +2297,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
     } else { // Only log in test mode if there is room!
         switch (blackboxConfig()->mode) {
         case BLACKBOX_MODE_MOTOR_TEST:
-            // Handle Motor Test Mode
+            // Handle Motor Test Mode (the PinIO input trigger is ignored in this mode)
             if (inMotorTestMode()) {
                 if (blackboxState==BLACKBOX_STATE_STOPPED) {
                     startInTestMode();
@@ -2241,7 +2310,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
             break;
         case BLACKBOX_MODE_ALWAYS_ON:
-            if (blackboxState==BLACKBOX_STATE_STOPPED) {
+            if (blackboxState==BLACKBOX_STATE_STOPPED && !pinioTriggerEnabled) {
                 startInTestMode();
             }
 

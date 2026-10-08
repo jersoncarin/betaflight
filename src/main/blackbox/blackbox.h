@@ -65,6 +65,7 @@ typedef struct blackboxConfig_s {
     uint8_t device;
     uint8_t mode;
     uint8_t high_resolution;
+    uint8_t pinio_input_blackbox;
 } blackboxConfig_t;
 
 PG_DECLARE(blackboxConfig_t, blackboxConfig);
@@ -82,6 +83,9 @@ uint8_t blackboxCalculateSampleRate(uint16_t pRatio);
 void blackboxValidateConfig(void);
 void blackboxFinish(void);
 bool blackboxMayEditConfig(void);
+#ifdef USE_PINIO
+bool blackboxPinioTriggerEnabled(void);
+#endif
 #ifdef UNIT_TEST
 STATIC_UNIT_TESTED void blackboxLogIteration(timeUs_t currentTimeUs);
 STATIC_UNIT_TESTED bool blackboxShouldLogPFrame(void);
